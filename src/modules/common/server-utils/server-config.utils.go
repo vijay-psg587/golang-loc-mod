@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -156,6 +158,13 @@ func GracefullShutDown(app *fiber.App, ch chan os.Signal) {
 	fmt.Println("Gracefully Shutting down...")
 	_ = app.Shutdown()
 
+}
+
+func GetRetryFunctionalityForAll() aws.Retryer {
+	r := retry.AddWithErrorCodes(retry.NewStandard(), "424", "433")
+	retry.AddWithMaxAttempts(r, 5)                                // TODO - get from env
+	retry.AddWithMaxBackoffDelay(r, time.Duration(time.Second*2)) // TODO: get this from env
+	return r
 }
 
 func GetAppFiberConfig(appConfig *models.AppConfigModel) *fiber.Config {

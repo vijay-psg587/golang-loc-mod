@@ -3,3 +3,4 @@ vs-code/
 src/config/
 build/
 main
+.vscode

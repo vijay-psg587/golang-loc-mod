@@ -10,7 +10,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/joho/godotenv"
@@ -30,11 +29,6 @@ import (
 func TestHttpHandlerFunc(ctx context.Context, w *http.ResponseWriter, r http.Request) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 }
-
-// func createCorsMiddleware(next http.Handler) http.Handler {
-
-// 	return
-// }
 
 func main() {
 	fmt.Println("Echoing...")
@@ -80,14 +74,6 @@ func main() {
 			return convertedErr.ToString()
 		})
 	}
-	// srv := &http.Server{
-	// 	Addr: appConfig.AppServerConfig.Addr + utils.COLON_CHAR + string(appConfig.AppServerConfig.Port),
-	// 	// Good practice to set timeouts to avoid Slowloris attacks.
-	// 	WriteTimeout: time.Second * time.Duration(appConfig.AppServerConfig.WriteTimeout),
-	// 	ReadTimeout:  time.Second * time.Duration(appConfig.AppServerConfig.ReadTimeout),
-	// 	IdleTimeout:  time.Second * time.Duration(appConfig.AppServerConfig.IdleTimeout),
-	// 	Handler:      r, // Pass our instance of gorilla/mux in.
-	// }
 
 	// Loading the app & aws configuration with go routines and sync grp
 	//var wg sync.WaitGroup
@@ -139,10 +125,14 @@ func loadEnv() {
 
 		ssmParamPath := utils.AWS_SSM_PARAM_PATH_PREFIX + utilService.GetEnvWithFallback("APP_GO_ENV", "dev").(string) + utils.SLASH
 		zlog.Info().Msgf("Param path: %v", ssmParamPath)
-		awsDefinedConfig, awsErr := config.LoadDefaultConfig(context.Background(), config.WithSharedConfigProfile("personal"))
+		// Configured the retryable configuration for the aws resource/service call
+		// if its local, we need to have a defined "personal" (you can set ur own name if so use value from env) aws profile and we need to pick it from there
+		// if its within aws itself, no need to create and use any aws profile
+
+		awsDefinedConfig, awsErr := services.CreateAwsConfig(env)
 		if awsErr == nil {
 			// get the values from aws ssm secret service
-			services.GetSSMParamStoreDefaults(context.Background(), &awsDefinedConfig, ssmParamPath)
+			services.GetSSMParamStoreDefaults(context.Background(), awsDefinedConfig, ssmParamPath)
 		}
 	}
 
