@@ -1,7 +1,6 @@
 package services
 
 import (
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/models"
 	"github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/models/enums"
 	"github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/models/errors"
+	"github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/utils"
 )
 
 // Declare global variables to be used with singleton pattern
@@ -28,7 +28,7 @@ func GetAppConfig() (*models.AppConfigModel, error) {
 	if appConfig.AppName == "" {
 		lock.Lock()
 		defer lock.Unlock()
-		appConfig.AppName = os.Getenv("APP_NAME")
+		appConfig.AppName = utilService.GetEnvWithFallback("APP_NAME", utils.APP_NAME).(string)
 		// getting aws config
 		if awsConfig, awsConfigErr := GetAwsAppConfig(); awsConfigErr == nil {
 			appConfig.AWSConfig = *awsConfig

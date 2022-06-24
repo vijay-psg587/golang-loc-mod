@@ -46,7 +46,7 @@ func ConfigureHooks(app *fiber.App) {
 	})
 }
 
-func ConfigMiddlewares(app *fiber.App) {
+func ConfigMiddlewares(app *fiber.App, appConfig *models.AppConfigModel) {
 
 	var wg sync.WaitGroup
 	// Using cache middleware
@@ -78,6 +78,21 @@ func ConfigMiddlewares(app *fiber.App) {
 		cacheStatusCh <- RegisterLoggerMiddleware(app)
 	}()
 
+	// Middleware to register appConfig in context and use it everywhere
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		cacheStatusCh <- RegisterAppConfigMiddleware(app, appConfig)
+	}()
+
+	app.Use(func(ctx *fiber.Ctx) error {
+		// Adding headers
+		ctx.Response().Header.Add("AppId", appConfig.AppName)
+		// we can several headers like this
+		ctx.Response().Header.Add("X-Org", "HashedIn")
+		return ctx.Next()
+	})
+
 	// TODO: Implement  custom authentication middleware - possibly try the paigw imp
 	go func() {
 		wg.Wait()
@@ -89,6 +104,16 @@ func ConfigMiddlewares(app *fiber.App) {
 		fmt.Println("DDDD", val)
 		zlog.Info().Msgf("Code: %v; Status: %v ;Timestamp: %v; Message: %v - Completed", 200, "200", appUtils.GetTimeStamp(enums.DEFAULT_LAYOUT), val)
 	}
+}
+
+func RegisterAppConfigMiddleware(app *fiber.App, appConfig *models.AppConfigModel) string {
+	app.Use(func(ctx *fiber.Ctx) error {
+		// MOST IMP, the context locals set should never be a pointer, since they are mutable at any point,
+		// Fiber guidelines is to create an actual key value pair instead of referencing a pointer
+		ctx.Locals(utils.CONTEXT_VARS.APPCONFIG, *appConfig)
+		return ctx.Next()
+	})
+	return "Registered appConfig"
 }
 
 func RegisterReqIdMiddleware(app *fiber.App) string {
@@ -160,11 +185,13 @@ func GracefullShutDown(app *fiber.App, ch chan os.Signal) {
 
 }
 
+// Custom retry method for all aws service calls
 func GetRetryFunctionalityForAll() aws.Retryer {
+
 	r := retry.AddWithErrorCodes(retry.NewStandard(), "424", "433")
-	retry.AddWithMaxAttempts(r, 5)                                // TODO - get from env
-	retry.AddWithMaxBackoffDelay(r, time.Duration(time.Second*2)) // TODO: get this from env
-	return r
+	retry.AddWithMaxAttempts(r, 5)                                              // TODO - get from env
+	newRetryer := retry.AddWithMaxBackoffDelay(r, time.Duration(time.Second*2)) // TODO: get this from env
+	return newRetryer
 }
 
 func GetAppFiberConfig(appConfig *models.AppConfigModel) *fiber.Config {

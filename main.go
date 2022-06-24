@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
@@ -42,15 +41,16 @@ func main() {
 
 	app := fiber.New(*serverUtils.GetAppFiberConfig(appConfig))
 
-	// Since fiber cannot recover from a panic from any handlers use this
-	app.Use(recover.New())
+	app.Server().MaxConnsPerIP = 2
 
 	app.Route("api", func(router fiber.Router) {
-		// REGISTER MIDDLEWARES
-		api := app.Group("/api")
-		serverUtils.ConfigMiddlewares(app)
 		// Hooks
 		serverUtils.ConfigureHooks(app)
+		// REGISTER MIDDLEWARES
+		api := app.Group("/api")
+
+		serverUtils.ConfigMiddlewares(app, appConfig)
+
 		// registering routes
 		apiService.RegisterRoutes(api)
 
@@ -123,13 +123,14 @@ func loadEnv() {
 	} else {
 		// Get the environment from aws - to load something from local system - aws profiile using config.WithSharedConfigProfile
 
-		ssmParamPath := utils.AWS_SSM_PARAM_PATH_PREFIX + utilService.GetEnvWithFallback("APP_GO_ENV", "dev").(string) + utils.SLASH
+		ssmParamPath := utils.AWS_SSM_PARAM_PATH_PREFIX + "dev" + utils.SLASH
 		zlog.Info().Msgf("Param path: %v", ssmParamPath)
 		// Configured the retryable configuration for the aws resource/service call
 		// if its local, we need to have a defined "personal" (you can set ur own name if so use value from env) aws profile and we need to pick it from there
 		// if its within aws itself, no need to create and use any aws profile
 
 		awsDefinedConfig, awsErr := services.CreateAwsConfig(env)
+
 		if awsErr == nil {
 			// get the values from aws ssm secret service
 			services.GetSSMParamStoreDefaults(context.Background(), awsDefinedConfig, ssmParamPath)

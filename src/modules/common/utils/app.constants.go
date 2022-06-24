@@ -6,6 +6,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type API_CONTEXT_VARS struct {
+	APPCONFIG string
+	TABLENAME string
+}
+
 type CORS_HEADERS struct {
 	ACCESS_CONTROL_ALLOW_ORIGIN_NAME      string
 	ACCESS_CONTROL_ALLOW_HEADERS_NAME     string
@@ -24,6 +29,7 @@ const (
 	DOT_CHAR                  string = "."
 	COLON_CHAR                string = ":"
 	SLASH                     string = "/"
+	APP_NAME                  string = "golang-loc-mod"
 	APP_ENV                   string = "APP_ENV"
 	LAYOUT_WITHOUT_TIME       string = "01-02-2006"
 	LAYOUT_US                 string = "January 2, 2006"
@@ -44,5 +50,9 @@ var (
 		ACCEPT_METHODS:                        []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodHead, http.MethodOptions},
 		ACCEPT_HEADERS:                        []string{fiber.HeaderOrigin, fiber.HeaderAccept, fiber.HeaderContentType, fiber.HeaderConnection, fiber.HeaderKeepAlive, "X-Reqeuested-With", "x-api-token"},
 		ORIGIN:                                []string{"*"},
+	}
+	CONTEXT_VARS = API_CONTEXT_VARS{
+		APPCONFIG: "appConfig",
+		TABLENAME: "tableName",
 	}
 )
