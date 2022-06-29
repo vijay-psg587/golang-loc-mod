@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/smithy-go/middleware"
 	"github.com/gofiber/fiber/v2"
@@ -18,6 +19,7 @@ import (
 	appUtils "github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/app-utils"
 	cmodels "github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/models"
 	"github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/models/enums"
+	cerror "github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/models/errors"
 	serverUtils "github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/server-utils"
 	cservices "github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/services"
 	"github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/utils"
@@ -37,7 +39,7 @@ func GetAllLocations(ctx *fiber.Ctx) error {
 		// MOST IMP!!!! Every handler implementation needs to have this , this is the only way we can recover in case of panics
 		defer func() {
 			if r := recover(); r != nil {
-				zlog.Info().Msgf("Code: %v; Status: %v ;Timestamp: %v Message: Recovered from panic in method - %v", 200, 200, appUtils.GetTimeStamp(enums.DEFAULT_LAYOUT), "GetAllLocations")
+				zlog.Error().Msgf("Code: %v; Status: %v ;Timestamp: %v Message: Recovered from panic in method - %v", 200, 200, appUtils.GetTimeStamp(enums.DEFAULT_LAYOUT), "GetAllLocations")
 			}
 		}()
 		// dynamodb specific configs
@@ -113,6 +115,62 @@ func GetAllLocations(ctx *fiber.Ctx) error {
 	}
 	// First get the awsConfig and load it
 
+}
+
+func GetStoreByLocId(ctx *fiber.Ctx) error {
+	storeId := ctx.Params("storeId")
+	storeNumber := ctx.Params("storeNumber")
+	fmt.Println("getting storeId:", storeId, storeNumber)
+	// First get the awsDynamoDB session created
+	env := appUtils.GetEnvWithFallback(utils.APP_GO_ENV, "dev_local").(string)
+	if awsConfig, err := cservices.CreateAwsConfig(env); err == nil {
+		// Attach the req aws middlwares
+		dynamodbClient := apiMiddleware.GetDyanmoDbClient(awsConfig)
+
+		// MOST IMP!!!! Every handler implementation needs to have this , this is the only way we can recover in case of panics
+		defer func() {
+			if r := recover(); r != nil {
+				zlog.Error().Msgf("Code: %v; Status: %v ;Timestamp: %v Message: Recovered from panic in method - %v", 200, 200, appUtils.GetTimeStamp(enums.DEFAULT_LAYOUT), "GetAllLocations")
+			}
+		}()
+
+		if appConfig, ok := ctx.Locals(utils.CONTEXT_VARS.APPCONFIG).(cmodels.AppConfigModel); ok {
+			fmt.Println("appConfig:", appConfig)
+
+			if params, marshallErr := attributevalue.MarshalList([]interface{}{storeId, storeNumber}); marshallErr == nil {
+				// using partiQL query
+				if response, dyErr := dynamodbClient.ExecuteStatement(context.Background(), &dynamodb.ExecuteStatementInput{
+					Statement:  aws.String(fmt.Sprintf("SELECT * FROM \"%v\" WHERE b_center_id=? AND b_loc_st=?", appConfig.AWSConfig.DYNAMO_DB_TABLE)),
+					Parameters: params,
+				}); dyErr == nil {
+					var detailsItems apiResp.LocTableSchema
+					if unMarshallErr := attributevalue.UnmarshalMap(response.Items[0], &detailsItems); unMarshallErr == nil {
+						data, _ := detailsItems.ToJSONString()
+						commonResponse := apiResp.CommonResponse{StatusMsg: "200", Error: nil, Metadata: response.ResultMetadata, Data: data}
+						strResponse, _ := commonResponse.ToJSONString()
+						return ctx.Status(200).Send([]byte(strResponse))
+					} else {
+						fmt.Println("unmarshallErr:", unMarshallErr)
+						return ctx.Status(500).Send([]byte(unMarshallErr.Error()))
+					}
+				} else {
+					fmt.Println("Error getting data from awS:", dyErr)
+					return ctx.Status(500).Send([]byte(dyErr.Error()))
+				}
+
+			} else {
+				return ctx.Status(500).Send([]byte(marshallErr.Error()))
+			}
+
+		}
+
+		return ctx.SendStatus(200)
+	} else {
+		customErr := appUtils.CreateCustomError(err, enums.AWS_ERROR, "500", enums.DEFAULT_LAYOUT, err.Error(), enums.AWS_INTERNAL_ERROR)
+		convertedErrMsg, _ := customErr.(*cerror.CustomErrModel)
+		zlog.Error().Msgf("Timestamp: %v, Status: %v, Code: %v, Message: %v", convertedErrMsg.Timestamp, convertedErrMsg.Status, convertedErrMsg.Code, convertedErrMsg.Message)
+		return ctx.Status(500).Send([]byte(convertedErrMsg.ToString()))
+	}
 }
 
 func GetLocationByCity(ctx *fiber.Ctx) {

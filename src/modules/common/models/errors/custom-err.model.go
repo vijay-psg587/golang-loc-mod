@@ -2,6 +2,7 @@ package errors
 
 import (
 	"encoding/json"
+	"strconv"
 
 	"github.com/vijayakumar-psg587/golang-loc-mod/src/modules/common/models/enums"
 )
@@ -17,7 +18,8 @@ type CustomErrModel struct {
 
 func (errModel *CustomErrModel) ToString() string {
 	if str, err := json.Marshal(errModel); err == nil {
-		return string(str)
+		convertedStr, _ := strconv.Unquote(string(str))
+		return string(convertedStr)
 	} else {
 		panic(err)
 	}

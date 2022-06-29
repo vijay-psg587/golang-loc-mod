@@ -27,7 +27,7 @@ func RegisterRoutes(api fiber.Router) {
 		Err:       errors.New("tt"),
 	}
 	fmt.Println(err)
-
 	api.Get("/loc/all", GetAllLocations)
+	api.Get("/loc/:storeId/:storeNumber", GetStoreByLocId)
 
 }

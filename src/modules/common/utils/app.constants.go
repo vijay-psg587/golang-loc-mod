@@ -31,6 +31,7 @@ const (
 	SLASH                     string = "/"
 	APP_NAME                  string = "golang-loc-mod"
 	APP_ENV                   string = "APP_ENV"
+	APP_GO_ENV                string = "APP_GO_ENV"
 	LAYOUT_WITHOUT_TIME       string = "01-02-2006"
 	LAYOUT_US                 string = "January 2, 2006"
 	LAYOUT_DEFAULT            string = "01-02-2006 15:04:05"
